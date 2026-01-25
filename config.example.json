@@ -1,0 +1,24 @@
+{
+  "Language": "en",
+  "Debug": false,
+  "WebDashboard": {
+    "enabled": true,
+    "port": 5000
+  },
+  "Telegram": {
+    "enabled": true,
+    "bot_token": "YOUR_TELEGRAM_BOT_TOKEN",
+    "chat_id": "YOUR_TELEGRAM_USER_ID",
+    "allowed_users": [
+        123456789
+    ]
+  },
+  "Private": {
+    "token": "YOUR_KICK_TOKEN_OR_COOKIE_STRING"
+  },
+  "Streamers": [
+    "stream1",
+    "stream2",
+    "stream3"
+  ]
+}
