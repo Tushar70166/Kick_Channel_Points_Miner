@@ -1,0 +1,35 @@
+# 🔹 Virtual Environments
+venv/
+env/
+.env
+.venv/
+
+# 🔹 Python cache & builds
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+build/
+dist/
+*.egg-info/
+
+# 🔹 Configuration & Secrets (ВАЖНО! Не сливай свои пароли)
+config.json
+# Оставляем пример конфига, если он есть
+!config.example.json 
+
+# 🔹 Logs & Databases
+*.log
+logs/
+debug.log
+*.sqlite
+*.db
+
+# 🔹 IDE & System files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# 🔹 Playwright browsers (они тяжелые)
+ms-playwright/
