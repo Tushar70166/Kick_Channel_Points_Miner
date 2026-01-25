@@ -67,6 +67,19 @@ Here is a complete example of the configuration file:
 }
 ```
 
+### 🔑 How to get your Kick Token
+
+1.  Log in to **Kick.com** in your browser.
+2.  Press `F12` to open Developer Tools.
+3.  Go to the **Network** tab.
+4.  Refresh the page (`F5`).
+5.  Click on any request that appears (e.g., `auth.`).
+6.  On the right panel, go to the **Headers** tab and scroll down to **Request Headers**.
+7.  Find the `authorization` line.
+8.  Copy the long string **after** the word `Bearer`. She looks like this `123456789|************************************`.
+9. Paste this string into your `config.json` in the `"token"` field.
+
+
 ### Parameters description:
 
 *   **`Language`**: Set to `"en"` or `"ru"`.
@@ -83,19 +96,6 @@ Here is a complete example of the configuration file:
 *   **`Streamers`**: List of channel slugs (names from the URL) to farm.
 
 ---
-
-### 🔑 How to get your Kick Token
-
-1.  Log in to **Kick.com** in your browser.
-2.  Press `F12` to open Developer Tools.
-3.  Go to the **Network** tab.
-4.  Refresh the page (`F5`).
-5.  Click on any request that appears (e.g., `auth.`).
-6.  On the right panel, go to the **Headers** tab and scroll down to **Request Headers**.
-7.  Find the `authorization` line.
-8.  Copy the long string **after** the word `Bearer`. She looks like this `123456789|************************************`.
-9. Paste this string into your `config.json` in the `"token"` field.
-
 
 ## 🎮 Usage
 
