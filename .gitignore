@@ -13,9 +13,8 @@ build/
 dist/
 *.egg-info/
 
-# 🔹 Configuration & Secrets (ВАЖНО! Не сливай свои пароли)
+# 🔹 Configuration & Secrets
 config.json
-# Оставляем пример конфига, если он есть
 !config.example.json 
 
 # 🔹 Logs & Databases
