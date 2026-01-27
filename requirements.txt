@@ -4,4 +4,4 @@ loguru==0.7.3
 brotli==1.2.0
 python-telegram-bot==22.5
 requests==2.32.5
-flack
+flask==3.1.0
