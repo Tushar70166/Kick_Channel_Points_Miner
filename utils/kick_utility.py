@@ -1,30 +1,18 @@
-import cloudscraper
+from curl_cffi import requests
 import json
-from urllib.parse import unquote
 from loguru import logger
 import time
 import random
 import traceback
-import brotli
-import zlib
-import gzip
-from io import BytesIO
 from localization import t
+
 
 class KickUtility:
     def __init__(self, username: str):
         self.username = username
-        # Используем cloudscraper с brotli
-        self.session = cloudscraper.create_scraper(
-            browser={
-                'browser': 'chrome',
-                'platform': 'windows',
-                'desktop': True,
-                'mobile': False
-            },
-            delay=10,
-            interpreter='nodejs'
-        )
+        
+        # Создаём сессию curl_cffi с Chrome 120 fingerprint
+        self.session = requests.Session(impersonate="chrome120")
         
         # Необходимые заголовки
         self.session.headers.update({
@@ -48,10 +36,11 @@ class KickUtility:
         self._initialize_session()
     
     def _initialize_session(self):
-        """Сессия с обходом клоудфлеер"""
+        """Инициализация сессии с обходом Cloudflare через curl_cffi"""
         try:
             logger.info(t("initializing_utility_session"))
-            response = self.session.get("https://kick.com")
+            
+            response = self.session.get("https://kick.com", timeout=15)
             
             logger.debug(t("base_page_status", status=response.status_code))
             if response.status_code == 200:
@@ -61,7 +50,7 @@ class KickUtility:
                 logger.error(t("failed_bypass", status=response.status_code))
                 logger.debug(t("response_content", content=response.text[:500]))
             
-            # Куки
+            # Устанавливаем необходимые куки
             essential_cookies = {
                 "cookie_preferences_set_v1": "%7B%22state%22%3A%7B%22preferences%22%3A%7B%22necessary%22%3Atrue%2C%22functional%22%3Atrue%2C%22performance%22%3Atrue%2C%22targeting%22%3Atrue%2C%22userHasMadeChoice%22%3Atrue%7D%2C%22functionalEnabled%22%3Atrue%2C%22performanceEnabled%22%3Atrue%2C%22targetingEnabled%22%3Atrue%7D%2C%22version%22%3A0%7D",
                 "showMatureContent": "true",
@@ -78,40 +67,18 @@ class KickUtility:
             logger.debug(t("init_traceback", traceback=traceback.format_exc()))
     
     def _decompress_response(self, response):
-        """Ручная распаковка сжатых ответов"""
-        content_encoding = response.headers.get('content-encoding', '').lower()
+        """Обработка ответа (curl_cffi делает декомпрессию автоматически)"""
         content = response.content
         
         try:
-            # Данные распакованны или нет
+            # Проверяем, распакованы ли данные уже
             try:
                 json.loads(content.decode('utf-8', errors='ignore'))
                 return content.decode('utf-8', errors='ignore')
             except:
                 pass
             
-            if 'br' in content_encoding and len(content) > 0:
-                # Распаковка brotli
-                try:
-                    return brotli.decompress(content).decode('utf-8')
-                except Exception as e:
-                    logger.warning(t("brotli_decompression_failed", error=str(e)))
-            elif 'gzip' in content_encoding and len(content) > 0:
-                # Распаковка gzip
-                try:
-                    buf = BytesIO(content)
-                    with gzip.GzipFile(fileobj=buf) as f:
-                        return f.read().decode('utf-8')
-                except Exception as e:
-                    logger.warning(t("gzip_decompression_failed", error=str(e)))
-            elif 'deflate' in content_encoding and len(content) > 0:
-                # Распаковка deflate
-                try:
-                    return zlib.decompress(content, -zlib.MAX_WBITS).decode('utf-8')
-                except Exception as e:
-                    logger.warning(t("deflate_decompression_failed", error=str(e)))
-            
-            # если не получилось пытаемся так
+            # Если не получилось, пытаемся просто декодировать
             return content.decode('utf-8', errors='ignore')
                 
         except Exception as e:
@@ -122,7 +89,7 @@ class KickUtility:
                 return str(content)
     
     def get_stream_id(self, token: str) -> int:
-        """Получаем ID живого стрима"""
+        """Получаем ID активного livestream"""
         self.session.headers["Authorization"] = f"Bearer {token}"
         
         try:
@@ -137,14 +104,15 @@ class KickUtility:
             
             response = self.session.get(
                 f"https://kick.com/api/v2/channels/{self.username}/livestream",
-                headers=headers
+                headers=headers,
+                timeout=15
             )
             
             logger.debug(t("livestream_api_status", status=response.status_code))
             
             if response.status_code != 200:
                 logger.warning(t("no_active_livestream", status=response.status_code))
-                # Тру получить ID из общих данных канала
+                # Пытаемся получить ID из общих данных канала
                 return self._get_stream_id_from_channel(token)
             
             # Распаковываем и парсим ответ
@@ -156,7 +124,7 @@ class KickUtility:
                 logger.error(t("json_parsing_error", error=str(e)))
                 return None
             
-            # ID стрима
+            # Извлекаем ID стрима
             if 'data' in data and 'id' in data['data']:
                 stream_id = data['data']['id']
                 logger.success(t("livestream_id_success", stream_id=stream_id))
@@ -175,7 +143,7 @@ class KickUtility:
             return None
     
     def _get_stream_id_from_channel(self, token: str) -> int:
-        """Доп метод получения ID стрима из данных канала"""
+        """Альтернативный метод получения ID стрима из данных канала"""
         self.session.headers["Authorization"] = f"Bearer {token}"
         
         try:
@@ -190,7 +158,8 @@ class KickUtility:
             
             response = self.session.get(
                 f"https://kick.com/api/v2/channels/{self.username}",
-                headers=headers
+                headers=headers,
+                timeout=15
             )
             
             logger.debug(t("channel_api_status", status=response.status_code))
@@ -208,7 +177,7 @@ class KickUtility:
                 logger.error(t("json_parsing_error", error=str(e)))
                 return None
             
-            # livestream ID
+            # Извлекаем livestream ID
             if 'data' in data:
                 channel_data = data['data']
                 if 'livestream' in channel_data and channel_data['livestream'] and 'id' in channel_data['livestream']:
@@ -224,7 +193,7 @@ class KickUtility:
             return None
     
     def get_channel_id(self, token: str) -> int:
-        """ID канала"""
+        """Получаем ID канала"""
         self.session.headers["Authorization"] = f"Bearer {token}"
         
         try:
@@ -239,7 +208,8 @@ class KickUtility:
             
             response = self.session.get(
                 f"https://kick.com/api/v2/channels/{self.username}",
-                headers=headers
+                headers=headers,
+                timeout=15
             )
             
             logger.debug(t("channel_api_status", status=response.status_code))
@@ -274,5 +244,4 @@ class KickUtility:
         except Exception as e:
             logger.error(t("error_getting_channel_id", error=str(e)))
             logger.debug(t("channel_id_traceback", traceback=traceback.format_exc()))
-
             return None

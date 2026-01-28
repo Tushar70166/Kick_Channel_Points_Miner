@@ -1,33 +1,20 @@
-import cloudscraper
+from curl_cffi import requests
 import json
-import re
-from urllib.parse import unquote
 from loguru import logger
 import time
 import random
 import traceback
-import brotli
-import zlib
-import gzip
-from io import BytesIO
 from localization import t
+
 
 class KickPoints:
     def __init__(self, token: str):
         self.token = token
-        # Используем cloudscraper с brotli
-        self.session = cloudscraper.create_scraper(
-            browser={
-                'browser': 'chrome',
-                'platform': 'windows',
-                'desktop': True,
-                'mobile': False
-            },
-            delay=10,
-            interpreter='nodejs'
-        )
         
-        #необходимые заголовки
+        # Создаём сессию curl_cffi с Chrome 120 fingerprint
+        self.session = requests.Session(impersonate="chrome120")
+        
+        # Необходимые заголовки
         self.session.headers.update({
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
             "Accept": "application/json, text/plain, */*",
@@ -50,10 +37,12 @@ class KickPoints:
         self._initialize_session()
     
     def _initialize_session(self):
-        """Сессия с обходом клоудфлеер"""
+        """Инициализация сессии с обходом Cloudflare через curl_cffi"""
         try:
             logger.info(t("initializing_session"))
-            response = self.session.get("https://kick.com")
+            
+            # curl_cffi автоматически обходит Cloudflare с правильным TLS fingerprint
+            response = self.session.get("https://kick.com", timeout=15)
             
             logger.debug(t("base_page_status", status=response.status_code))
             if response.status_code == 200:
@@ -63,7 +52,7 @@ class KickPoints:
                 logger.error(t("failed_bypass", status=response.status_code))
                 logger.debug(t("response_content", content=response.text[:500]))
             
-            # Куки
+            # Устанавливаем необходимые куки
             essential_cookies = {
                 "cookie_preferences_set_v1": "%7B%22state%22%3A%7B%22preferences%22%3A%7B%22necessary%22%3Atrue%2C%22functional%22%3Atrue%2C%22performance%22%3Atrue%2C%22targeting%22%3Atrue%2C%22userHasMadeChoice%22%3Atrue%7D%2C%22functionalEnabled%22%3Atrue%2C%22performanceEnabled%22%3Atrue%2C%22targetingEnabled%22%3Atrue%7D%2C%22version%22%3A0%7D",
                 "showMatureContent": "true",
@@ -80,40 +69,18 @@ class KickPoints:
             logger.debug(t("init_traceback", traceback=traceback.format_exc()))
     
     def _decompress_response(self, response):
-        """Ручная распаковка сжатых ответов"""
-        content_encoding = response.headers.get('content-encoding', '').lower()
+        """Обработка ответа (curl_cffi делает декомпрессию автоматически)"""
         content = response.content
         
         try:
-            # Данные распакованны или нет
+            # Проверяем, распакованы ли данные уже
             try:
                 json.loads(content.decode('utf-8', errors='ignore'))
                 return content.decode('utf-8', errors='ignore')
             except:
                 pass
             
-            if 'br' in content_encoding and len(content) > 0:
-                # Распаковка brotli
-                try:
-                    return brotli.decompress(content).decode('utf-8')
-                except Exception as e:
-                    logger.warning(t("brotli_decompression_failed", error=str(e)))
-            elif 'gzip' in content_encoding and len(content) > 0:
-                # Распаковка gzip
-                try:
-                    buf = BytesIO(content)
-                    with gzip.GzipFile(fileobj=buf) as f:
-                        return f.read().decode('utf-8')
-                except Exception as e:
-                    logger.warning(t("gzip_decompression_failed", error=str(e)))
-            elif 'deflate' in content_encoding and len(content) > 0:
-                # Распаковка deflate
-                try:
-                    return zlib.decompress(content, -zlib.MAX_WBITS).decode('utf-8')
-                except Exception as e:
-                    logger.warning(t("deflate_decompression_failed", error=str(e)))
-            
-            # если не получилось пытаемся так 
+            # Если не получилось, пытаемся просто декодировать
             return content.decode('utf-8', errors='ignore')
                 
         except Exception as e:
@@ -124,9 +91,9 @@ class KickPoints:
                 return str(content)
     
     def get_ws_token(self, streamer_name: str) -> str:
-        """Получаем Вебсокет токен с обходом"""
+        """Получаем WebSocket токен с обходом Cloudflare"""
         
-        # Есть ли критические куки
+        # Проверяем наличие критических куки Cloudflare
         if "cf_clearance" not in self.session.cookies and "__cf_bm" not in self.session.cookies:
             logger.warning(t("no_cloudflare_cookies"))
             self._initialize_session()
@@ -134,7 +101,7 @@ class KickPoints:
         try:
             logger.info(t("getting_channel_data", streamer=streamer_name))
             
-            # Инфа о канале
+            # Получаем информацию о канале
             channel_url = f"https://kick.com/api/v2/channels/{streamer_name}"
             channel_headers = {
                 "Referer": f"https://kick.com/{streamer_name}/",
@@ -143,7 +110,11 @@ class KickPoints:
                 "Accept-Encoding": "gzip, deflate, br"
             }
             
-            channel_response = self.session.get(channel_url, headers=channel_headers)
+            channel_response = self.session.get(
+                channel_url, 
+                headers=channel_headers,
+                timeout=15
+            )
             logger.debug(t("channel_api_status", status=channel_response.status_code))
             
             if channel_response.status_code != 200:
@@ -162,7 +133,7 @@ class KickPoints:
                 logger.debug(t("response_text", text=response_text[:500]))
                 return None
             
-            # структура ответа
+            # Определяем структуру ответа
             if 'data' in channel_data:
                 # Старая структура
                 channel_info = channel_data['data']
@@ -186,7 +157,7 @@ class KickPoints:
             
             logger.info(t("channel_ids_info", channel_id=channel_id, user_id=user_id))
             
-            # получаем токен для WebSocket
+            # Получаем токен для WebSocket
             ws_url = "https://websockets.kick.com/viewer/v1/token"
             ws_headers = {
                 "Referer": f"https://kick.com/{streamer_name}/",
@@ -200,7 +171,8 @@ class KickPoints:
             
             ws_response = self.session.get(
                 ws_url,
-                headers=ws_headers
+                headers=ws_headers,
+                timeout=15
             )
             
             logger.debug(t("websocket_token_api_status", status=ws_response.status_code))
@@ -210,7 +182,7 @@ class KickPoints:
                 logger.debug(t("response", response=self._decompress_response(ws_response)))
                 return None
             
-            # Распаковываем и парсим ответ
+            # Распаковываем и парсим ответ WebSocket токена
             try:
                 ws_response_text = self._decompress_response(ws_response)
                 ws_data = json.loads(ws_response_text)
@@ -242,5 +214,4 @@ class KickPoints:
         except Exception as e:
             logger.error(t("critical_error", error=str(e)))
             logger.debug(t("critical_traceback", traceback=traceback.format_exc()))
-
             return None

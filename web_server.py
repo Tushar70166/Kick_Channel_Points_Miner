@@ -5,17 +5,21 @@ from flask import Flask, render_template_string, jsonify
 from loguru import logger
 from datetime import datetime
 
+
 # Хранилище ссылок на данные
 shared_context = {
     "streamers": [],
     "points": {},
     "last_update": {},
-    "status": "Initializing"
+    "status": "Initializing",
+    "stream_status": {}  # ← ДОБАВЛЕНО: online/offline для каждого стримера
 }
+
 
 app = Flask(__name__)
 
-HTML_TEMPLATE = """
+
+HTML_TEMPLATE = r"""
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -123,12 +127,18 @@ HTML_TEMPLATE = """
         .status-dot {
             width: 8px;
             height: 8px;
-            background-color: var(--kick-green);
             border-radius: 50%;
             display: inline-block;
             margin-right: 6px;
+        }
+        .status-dot.online {
+            background-color: var(--kick-green);
             box-shadow: 0 0 8px var(--kick-green);
             animation: pulse 2s infinite;
+        }
+        .status-dot.offline {
+            background-color: #ef4444;
+            box-shadow: 0 0 8px #ef4444;
         }
         @keyframes pulse {
             0% { opacity: 1; transform: scale(1); }
@@ -153,6 +163,7 @@ HTML_TEMPLATE = """
             </div>
         </div>
     </nav>
+
 
     <div class="container">
         <!-- Stats Overview -->
@@ -189,6 +200,7 @@ HTML_TEMPLATE = """
             </div>
         </div>
 
+
         <!-- Main Table -->
         <div class="card">
             <div class="card-body p-0">
@@ -215,12 +227,15 @@ HTML_TEMPLATE = """
         </footer>
     </div>
 
+
     <script>
         const startTime = Date.now(); 
 
+
         function formatNumber(num) {
-            return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+            return num.toString().replace(/\\B(?=(\\d{3})+(?!\\d))/g, " ");
         }
+
 
         function updateUptime() {
             const diff = Math.floor((Date.now() - startTime) / 1000);
@@ -229,6 +244,7 @@ HTML_TEMPLATE = """
             const s = (diff % 60).toString().padStart(2, '0');
             document.getElementById('uptime').innerText = `${h}:${m}:${s}`;
         }
+
 
         async function fetchStats() {
             try {
@@ -243,9 +259,15 @@ HTML_TEMPLATE = """
                 data.streamers.forEach(name => {
                     const pts = data.points[name] || 0;
                     const last = data.last_update[name] || 'Pending...';
+                    const streamStatus = data.stream_status[name] || 'offline';  // ← ДОБАВЛЕНО
                     total += pts;
                     
                     const initial = name.charAt(0).toUpperCase();
+                    
+                    // ← ИЗМЕНЕНО: динамический статус вместо hardcoded "Online"
+                    const statusClass = streamStatus === 'online' ? 'online' : 'offline';
+                    const statusText = streamStatus === 'online' ? 'Online' : 'Offline';
+                    const statusColor = streamStatus === 'online' ? 'text-white' : 'text-danger';
                     
                     rowsHtml += `
                         <tr>
@@ -259,8 +281,8 @@ HTML_TEMPLATE = """
                             <td class="text-muted small" style="font-family: monospace">${last}</td>
                             <td class="text-end pe-4">
                                 <div class="d-flex align-items-center justify-content-end">
-                                    <span class="status-dot"></span>
-                                    <span class="small text-white">Online</span>
+                                    <span class="status-dot ${statusClass}"></span>
+                                    <span class="small ${statusColor}">${statusText}</span>
                                 </div>
                             </td>
                         </tr>
@@ -280,6 +302,7 @@ HTML_TEMPLATE = """
             }
         }
 
+
         setInterval(fetchStats, 3000);
         setInterval(updateUptime, 1000);
         fetchStats();
@@ -288,9 +311,11 @@ HTML_TEMPLATE = """
 </html>
 """
 
+
 @app.route('/')
 def dashboard():
     return render_template_string(HTML_TEMPLATE)
+
 
 @app.route('/api/data')
 def get_data():
@@ -301,12 +326,15 @@ def get_data():
         else:
             clean_last_update[k] = str(v)
 
+
     return jsonify({
         "streamers": shared_context["streamers"],
         "points": shared_context["points"],
         "last_update": clean_last_update,
-        "status": shared_context["status"]
+        "status": shared_context["status"],
+        "stream_status": shared_context["stream_status"]  # ← ДОБАВЛЕНО
     })
+
 
 def start_server(streamers_list, port=5000):
     shared_context["streamers"] = streamers_list
@@ -319,9 +347,27 @@ def start_server(streamers_list, port=5000):
         logger.info(f"🌍 Web Dashboard available at http://localhost:{port}")
         app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
 
+
     t = threading.Thread(target=run, daemon=True)
     t.start()
 
-def update_streamer_info(name, points, last_update_time):
+
+def update_streamer_info(name, points, last_update_time, stream_id=None):  # ← ДОБАВЛЕН stream_id
+    """Обновление информации о стримере
+    
+    Args:
+        name: Имя стримера
+        points: Количество поинтов
+        last_update_time: Время последнего обновления
+        stream_id: ID стрима (None если оффлайн)
+    """
     shared_context["points"][name] = points
     shared_context["last_update"][name] = last_update_time
+    
+    # Определяем статус стрима
+    if stream_id is not None:
+        shared_context["stream_status"][name] = "online"
+    else:
+        shared_context["stream_status"][name] = "offline"
+    
+    logger.debug(f"📊 Updated {name}: {points} points, status: {shared_context['stream_status'][name]}")

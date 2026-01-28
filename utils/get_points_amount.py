@@ -1,28 +1,16 @@
-import cloudscraper
+from curl_cffi import requests
 import json
-from urllib.parse import unquote
 from loguru import logger
 import time
 import random
 import traceback
-import brotli
-import zlib
-import gzip
-from io import BytesIO
 from localization import t
+
 
 class PointsAmount:
     def __init__(self):
-        self.session = cloudscraper.create_scraper(
-            browser={
-                'browser': 'chrome',
-                'platform': 'windows',
-                'desktop': True,
-                'mobile': False
-            },
-            delay=10,
-            interpreter='nodejs'
-        )
+        # Создаём сессию curl_cffi с Chrome 120 fingerprint
+        self.session = requests.Session(impersonate="chrome120")
         
         # Необходимые заголовки
         self.session.headers.update({
@@ -46,10 +34,11 @@ class PointsAmount:
         self._initialize_session()
     
     def _initialize_session(self):
-        """Сессия с обходом клоудфлеер"""
+        """Инициализация сессии с обходом Cloudflare через curl_cffi"""
         try:
             logger.info(t("initializing_points_session"))
-            response = self.session.get("https://kick.com")
+            
+            response = self.session.get("https://kick.com", timeout=15)
             
             logger.debug(t("base_page_status", status=response.status_code))
             if response.status_code == 200:
@@ -59,7 +48,7 @@ class PointsAmount:
                 logger.error(t("failed_bypass", status=response.status_code))
                 logger.debug(t("response_content", content=response.text[:500]))
             
-            # Куки
+            # Устанавливаем необходимые куки
             essential_cookies = {
                 "cookie_preferences_set_v1": "%7B%22state%22%3A%7B%22preferences%22%3A%7B%22necessary%22%3Atrue%2C%22functional%22%3Atrue%2C%22performance%22%3Atrue%2C%22targeting%22%3Atrue%2C%22userHasMadeChoice%22%3Atrue%7D%2C%22functionalEnabled%22%3Atrue%2C%22performanceEnabled%22%3Atrue%2C%22targetingEnabled%22%3Atrue%7D%2C%22version%22%3A0%7D",
                 "showMatureContent": "true",
@@ -76,29 +65,11 @@ class PointsAmount:
             logger.debug(t("init_traceback", traceback=traceback.format_exc()))
     
     def _decompress_response(self, response):
-        """Ручная распаковка сжатых ответов"""
-        content_encoding = response.headers.get('content-encoding', '').lower()
+        """Обработка ответа (curl_cffi делает декомпрессию автоматически)"""
         content = response.content
         
         try:
-            if 'br' in content_encoding and len(content) > 0:
-                try:
-                    return brotli.decompress(content).decode('utf-8')
-                except Exception as e:
-                    logger.warning(t("brotli_decompression_failed", error=str(e)))
-            elif 'gzip' in content_encoding and len(content) > 0:
-                try:
-                    buf = BytesIO(content)
-                    with gzip.GzipFile(fileobj=buf) as f:
-                        return f.read().decode('utf-8')
-                except Exception as e:
-                    logger.warning(t("gzip_decompression_failed", error=str(e)))
-            elif 'deflate' in content_encoding and len(content) > 0:
-                try:
-                    return zlib.decompress(content, -zlib.MAX_WBITS).decode('utf-8')
-                except Exception as e:
-                    logger.warning(t("deflate_decompression_failed", error=str(e)))
-            
+            # Просто декодируем (curl_cffi уже распаковал)
             return content.decode('utf-8', errors='ignore')
                 
         except Exception as e:
@@ -109,7 +80,7 @@ class PointsAmount:
                 return str(content)
     
     def get_amount(self, username: str, token: str) -> int:
-        """Количество поинтов для пользователя"""
+        """Получаем количество поинтов для пользователя"""
         self.session.headers["Authorization"] = f"Bearer {token}"
 
         try:
@@ -124,14 +95,15 @@ class PointsAmount:
             
             response = self.session.get(
                 f"https://kick.com/api/v2/channels/{username}/points",
-                headers=headers
+                headers=headers,
+                timeout=15
             )
             
             logger.debug(t("points_api_status", username=username, status=response.status_code))
             
             if response.status_code == 404:
                 logger.warning(t("points_endpoint_changed", username=username))
-                # Попробуем альт эндпоинт
+                # Попробуем альтернативный эндпоинт
                 return self._get_points_alternative(username, token)
             
             if response.status_code != 200:
@@ -170,7 +142,7 @@ class PointsAmount:
             return 0
     
     def _get_points_alternative(self, username: str, token: str) -> int:
-        """Альт метод получения поинтов"""
+        """Альтернативный метод получения поинтов через channel API"""
         try:
             logger.info(t("trying_alternative_points", username=username))
             
@@ -184,7 +156,8 @@ class PointsAmount:
             
             response = self.session.get(
                 f"https://kick.com/api/v2/channels/{username}",
-                headers=headers
+                headers=headers,
+                timeout=15
             )
             
             if response.status_code != 200:
@@ -204,5 +177,4 @@ class PointsAmount:
             
         except Exception as e:
             logger.error(t("alternative_error", error=str(e)))
-
             return 0

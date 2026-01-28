@@ -25,7 +25,7 @@ config = {}
 telegram_bot = None
 
 async def monitor_points_progress():
-    """Фоновая задача: проверяет, идут ли начисления"""
+    """проверяет, идут ли начисления"""
     while True:
         await asyncio.sleep(60)
         
@@ -49,8 +49,8 @@ async def monitor_points_progress():
             logger.info("Exiting for restart...")
             os._exit(1)
 
-async def check_points_periodically(streamer_name, token):
-    """Задача: опрос баланса (API)"""
+async def check_points_periodically(streamer_name, token, kick_utility):
+    """опрос баланса (API)"""
     global points_tracker, last_points_update
     
     if streamer_name not in points_tracker:
@@ -61,6 +61,8 @@ async def check_points_periodically(streamer_name, token):
         try:
             await asyncio.sleep(random.randint(120, 180)) 
             
+            stream_id = kick_utility.get_stream_id(token)
+            
             points_amount = PointsAmount()
             amount = points_amount.get_amount(streamer_name, token)
             
@@ -70,7 +72,7 @@ async def check_points_periodically(streamer_name, token):
             current_time = datetime.now()
             last_points_update[streamer_name] = current_time
             
-            web_server.update_streamer_info(streamer_name, amount, current_time)
+            web_server.update_streamer_info(streamer_name, amount, current_time, stream_id)
 
             if telegram_bot and telegram_bot.active:
                 telegram_bot.set_points_data(streamer_name, amount)
@@ -93,8 +95,9 @@ async def check_points_periodically(streamer_name, token):
         except Exception as e:
             logger.error(f"Error checking points for {streamer_name}: {e}")
 
+
 async def handle_streamer(streamer_name):
-    """Задача: работа с WebSocket одного стримера"""
+    """работа с WebSocket одного стримера"""
     token = config['Private']['token']
     
     await asyncio.sleep(random.uniform(2, 10))
@@ -114,6 +117,11 @@ async def handle_streamer(streamer_name):
         if not channel_id:
              raise Exception("Failed to get Channel ID")
         
+        points_amount = PointsAmount()
+        initial_points = points_amount.get_amount(streamer_name, token)
+        if initial_points is not None:
+            web_server.update_streamer_info(streamer_name, initial_points, datetime.now(), stream_id)
+        
         kick_websocket_client = KickWebSocket({
             "token": ws_token,
             "streamId": stream_id if stream_id else 0,
@@ -121,7 +129,7 @@ async def handle_streamer(streamer_name):
         })
         
         ws_task = asyncio.create_task(kick_websocket_client.connect())
-        points_task = asyncio.create_task(check_points_periodically(streamer_name, token))
+        points_task = asyncio.create_task(check_points_periodically(streamer_name, token, kick_utility))
         
         if telegram_bot and telegram_bot.active:
             await telegram_bot.send_streamer_started(streamer_name)
